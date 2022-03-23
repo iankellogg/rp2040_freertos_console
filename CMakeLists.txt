@@ -6,27 +6,33 @@ include(pico_sdk_import.cmake)
 # Pull in FreeRTOS
 include(FreeRTOS_Kernel_import.cmake)
 
-project(example C CXX ASM)
+project(app_console C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
+
+
 pico_sdk_init()
 
-
-add_executable(main_blinky
+file(GLOB_RECURSE SOURCES   "console/*.c" "log/*.c" )
+add_executable(app_console
         main.c
+        appConsole.c
+        ${SOURCES}
         )
 
-target_compile_definitions(main_blinky PRIVATE
-        mainCREATE_SIMPLE_BLINKY_DEMO_ONLY=1
-        )
 
-target_include_directories(main_blinky PRIVATE
+        target_compile_definitions(app_console PRIVATE
+        CONFIG_LOG_DEFAULT_LEVEL=LOG_DEBUG
+                )
+target_include_directories(app_console PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/../../Common/include)
 
-target_link_libraries(main_blinky pico_stdlib FreeRTOS-Kernel FreeRTOS-Kernel-Heap5)
-pico_add_extra_outputs(main_blinky)
+include_directories(console log)
+
+target_link_libraries(app_console pico_stdlib FreeRTOS-Kernel FreeRTOS-Kernel-Heap1 )
+pico_add_extra_outputs(app_console)
 # Enable usb output, disable uart output
-pico_enable_stdio_usb(main_blinky 1)
-pico_enable_stdio_uart(main_blinky 0)
+pico_enable_stdio_usb(app_console 1)
+pico_enable_stdio_uart(app_console 0)

@@ -51,19 +51,12 @@
 /* Library includes. */
 #include <stdio.h>
 #include "pico/stdlib.h"
-#if ( mainRUN_ON_CORE == 1 )
-#include "pico/multicore.h"
-#endif
+#include "hardware/gpio.h"
 
-/* Set mainCREATE_SIMPLE_BLINKY_DEMO_ONLY to one to run the simple blinky demo,
-or 0 to run the more comprehensive test and demo application. */
+#include "app_console.h"
+
 
 /*-----------------------------------------------------------*/
-
-/*
- * Configure the hardware as necessary to run this demo.
- */
-static void prvSetupHardware( void );
 
 /* Prototypes for the standard FreeRTOS callback/hook functions implemented
 within this file. */
@@ -72,24 +65,61 @@ void vApplicationIdleHook( void );
 void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName );
 void vApplicationTickHook( void );
 
+#if configSUPPORT_STATIC_ALLOCATION && configUSE_TIMERS
+static StaticTask_t xTimerTaskTCBBuffer;
+static StackType_t xTimerStack[configTIMER_TASK_STACK_DEPTH];
+
+/* If static allocation is supported then the application must provide the
+   following callback function - which enables the application to optionally
+   provide the memory that will be used by the timer task as the task's stack
+   and TCB. */
+void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer, StackType_t **ppxTimerTaskStackBuffer, uint32_t *pulTimerTaskStackSize) {
+  *ppxTimerTaskTCBBuffer = &xTimerTaskTCBBuffer;
+  *ppxTimerTaskStackBuffer = &xTimerStack[0];
+  *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
+}
+#endif
+#if configSUPPORT_STATIC_ALLOCATION
+#define IDLE_TASK_SIZE 128
+/* static memory allocation for the IDLE task */
+static StaticTask_t xIdleTaskTCBBuffer;
+static StackType_t xIdleStack[IDLE_TASK_SIZE];
+ 
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize) {
+  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
+  *ppxIdleTaskStackBuffer = &xIdleStack[0];
+  *pulIdleTaskStackSize = IDLE_TASK_SIZE;
+}
+#endif
 /*-----------------------------------------------------------*/
+
+void blinky_task(void *params)
+{
+
+    
+    const uint LED_PIN = PICO_DEFAULT_LED_PIN;
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+    while (true) {
+        gpio_put(LED_PIN, 1);
+        vTaskDelay(250);
+        gpio_put(LED_PIN, 0);
+        //printf("blink\r\n");
+        vTaskDelay(250);
+    }
+}
 
 
 int main( void )
 {
     /* Configure the hardware ready to run the demo. */
-    prvSetupHardware();
-
-    return 0;
-}
-/*-----------------------------------------------------------*/
-
-static void prvSetupHardware( void )
-{
     stdio_init_all();
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, 1);
-    gpio_put(PICO_DEFAULT_LED_PIN, !PICO_DEFAULT_LED_PIN_INVERTED);
+    xTaskCreate(blinky_task,"Blinky",256,NULL,1,NULL);
+    Init_ConsoleTask();
+
+		/* Start the tasks and timer running. */
+		vTaskStartScheduler();
+    return 0;
 }
 /*-----------------------------------------------------------*/
 
@@ -102,13 +132,14 @@ void vApplicationMallocFailedHook( void )
     configTOTAL_HEAP_SIZE configuration constant in FreeRTOSConfig.h. */
 
     /* Force an assert. */
+    printf("Malloc Failed\r\n");
     configASSERT( ( volatile void * ) NULL );
 }
 /*-----------------------------------------------------------*/
 
 void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 {
-    ( void ) pcTaskName;
+   // ( void ) pcTaskName;
     ( void ) pxTask;
 
     /* Run time stack overflow checking is performed if
@@ -116,6 +147,7 @@ void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
     function is called if a stack overflow is detected. */
 
     /* Force an assert. */
+    printf("Task Overflow: %s\r\n",pcTaskName);
     configASSERT( ( volatile void * ) NULL );
 }
 /*-----------------------------------------------------------*/
