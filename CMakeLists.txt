@@ -18,6 +18,7 @@ file(GLOB_RECURSE SOURCES   "console/*.c" "log/*.c" )
 add_executable(app_console
         main.c
         appConsole.c
+        freeRTOS.c
         ${SOURCES}
         )
 
